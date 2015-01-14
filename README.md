@@ -1,1 +1,1 @@
-# R
+Collection of R scripts
