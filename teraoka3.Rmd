@@ -1,0 +1,300 @@
+
+title: "Report_teraoka""
+output: PDF_document
+---
+# Input data
+```{r}
+data <- read.csv("file:///C:/Users/Hai Yen/Downloads/Practice_R_chi Mai/teraoka_deletedNA0831.csv.csv", header = T)
+str(data)
+data$X.1 <- NULL
+data$X <- NULL
+```
+
+```{r}
+x <- data
+```
+
+# phương pháp K-means: phân cụm dựa theo khoảng cách
+tổng các khoảng cách trong 1 cụm quan sát là bé nhất(tối ưu)
+```{r message=FALSE}
+# Initialize total within sum of squares error: wss
+wss <- 0
+
+# For 1 to 15 cluster centers
+for (i in 1:15) {
+  km.out <- kmeans(x, centers = i, nstart = 20)
+  # Save total within sum of squares to wss variable
+  wss[i] <- km.out$tot.withinss
+}
+
+# Plot total within sum of squares vs. number of clusters
+plot(1:15, wss, type = "b", 
+     xlab = "Number of Clusters", 
+     ylab = "Within groups sum of squares")
+
+# Set k equal to the number of clusters corresponding to the elbow location
+k <- 2  # 3 is probably OK, too
+```
+
+Nhìn vào plot ta thấy số cluster tốt là 2,3 hoặc 4
+
+Hàm hopkins: Tính toán số liệu thống kê của Hopkins về dữ liệu đã cho. 'n' có thể được đặt để xem liệu thống kê này có hội tụ hay không.
+```{r}
+#hopkins(data, n, byrow = F, header = F)
+library(clustertend)
+set.seed(29)
+hopkins(x, n = nrow(x) - 1)
+```
+Phần tính hàm hopkins này trong máy em chạy rất chậm và chưa ra được kết quả.
+```{r}
+# Không phải bộ dữ liệu nào cũng có thể sử dụng được thuật toán phân cụm - bao gồm cả K-Mean Clustering. Để đánh giá một bộ dữ liệu có là phù hợp cho sử dụng thuật toán phân loại hay không chúng ta có thể sử dụng chẩn đoán bằng hình ảnh VAT (viết tắt của visual assessment of cluster tendency) theo cách tiếp cận do Bezdek & Hathaway (2002) đề xuất. 
+```
+
+```{r echo= FALSE, message= FALSE}
+# chuẩn hóa dữ liệu: 
+x_scaled <- x %>% 
+  scale()
+# VAT cho  bộ dữ liệu: 
+library(clustertend)
+library(cluster)
+fviz_dist(dist(x_scaled), show_labels = FALSE)
+```
+
+```{r}
+str(x)
+km.out <- kmeans(x, centers = k, nstart = 20, iter.max = 50)
+
+plot(x[, c("Compactor.move.delay", "Bottle.weight")],
+     col = km.out$cluster,
+     main = paste("k-means clustering of teraoka with", k, "clusters"),
+     xlab = "compactor move delay", ylab = "Bottle weight")
+```
+
+
+```{r}
+k <- 3
+km.out <- kmeans(x, centers = k, nstart = 20, iter.max = 50)
+
+plot(x[, c("Compactor.move.delay", "Bottle.weight")],
+     col = km.out$cluster,
+     main = paste("k-means clustering of teraoka with", k, "clusters"),
+     xlab = "compactor move delay", ylab = "Bottle weight")
+```
+
+```{r}
+k <- 4
+km.out <- kmeans(x, centers = k, nstart = 20, iter.max = 50)
+
+plot(x[, c("Compactor.move.delay", "Bottle.weight")],
+     col = km.out$cluster,
+     main = paste("k-means clustering of teraoka with", k, "clusters"),
+     xlab = "compactor move delay", ylab = "Bottle weight")
+```
+
+Nhận xét: với số cluster = 2, 3 hoặc 4 vẫn không thấy các nhóm được tách biệt rõ rệt.
+```{r}
+library(dplyr)
+df1 <- x %>% select(Compactor.move.delay, Bottle.weight, Compactor.Shutter.open, Compactor.Shutter.close, Infeed.Shutter.open, Infeed.Shutter.close)
+par(mfrow = c(2, 3)) 
+par(bg = "grey98") 
+for (i in 1:6) {
+  boxplot(df1[, i] ~ df1$Compactor.move.delay, 
+          main = names(df1[i]), 
+          col = rainbow(4)) 
+} 
+```
+Nhận xé: phân theo từng thành phần(các thao tác trong quy trình xử lý của máy) thì cũng không thấy các nhóm tách biệt
+
+# Hierarchical clustering with results
+```{r}
+# Create hierarchical clustering model: hclust.out
+hclust.out <- hclust(d = dist(x))
+
+# Inspect the result
+summary(hclust.out)
+plot(hclust.out)
+```
+
+# Selecting number of clusters
+cut by height, ví dụ height = 4000
+```{r }
+# Cut by height
+cutree(hclust.out, h = 4000)
+
+```
+cut by number of clusters, ví dụ số cluster = 3
+```{r}
+# Cut by number of clusters
+cutree(hclust.out, k =3 )
+```
+
+# Clustering linkage and practical matters
+có 3 phương pháp chính, method = complete, average, single
+```{r}
+# Cluster using complete linkage: hclust.complete
+hclust.complete <- hclust(dist(x), method = "complete")
+
+# Cluster using average linkage: hclust.average
+hclust.average <- hclust(dist(x), method = "average")
+
+# Cluster using single linkage: hclust.single
+hclust.single <- hclust(dist(x), method = "single")
+
+# Plot dendrogram of hclust.complete
+plot(hclust.complete, main = "Complete")
+
+# Plot dendrogram of hclust.average
+plot(hclust.average, main = "Average")
+
+# Plot dendrogram of hclust.single
+plot(hclust.single, main = "Single")
+```
+
+```{r echo= FALSE}
+# The models you created in the last exercise—hclust.complete, hclust.average, and hclust.single—are available in your workspace.
+
+# Which linkage(s) produce balanced trees? Complete and average
+
+# Right! Whether you want balanced or unbalanced trees for your hierarchical clustering model depends on the context of the problem you're trying to solve. Balanced trees are essential if you want an even number of observations assigned to each cluster. On the other hand, if you want to detect outliers, for example, an unbalanced tree is more desirable because pruning an unbalanced tree can result in most observations assigned to one cluster and only a few observations assigned to other clusters.
+
+```
+
+
+# Practical matters: scaling
+```{r}
+# View column means
+colMeans(x)
+
+# View column standard deviations
+apply(x, 2, sd)
+
+# Scale the data
+x.scaled <- scale(x)
+
+# Create hierarchical clustering model: hclust.pokemon
+hclust.x <- hclust(dist(x.scaled), method = "complete")
+```
+
+# Comparing kmeans() and hclust()
+```{r}
+# Apply cutree() to hclust.pokemon: cut.pokemon
+cut.x <- cutree(hclust.x, k = 3)
+
+# Compare methods
+table(km.out$cluster, cut.x)
+str(km.out)
+str(cut.x)
+```
+Nhìn vào bảng, có vẻ như mô hình phân cụm phân cấp gán hầu hết các quan sát cho cụm 1, trong khi thuật toán k-means phân phối các quan sát tương đối đồng đều giữa tất cả các cụm. Điều quan trọng cần lưu ý là không có sự đồng thuận về phương pháp nào tạo ra các cụm tốt hơn. Công việc của nhà phân tích trong phân nhóm không giám sát là quan sát các bài tập nhóm và thực hiện một cuộc gọi phán đoán về phương pháp nào cung cấp thêm thông tin chi tiết về dữ liệu
+
+# PCA using prcomp()
+```{r}
+# Perform scaled PCA: pr.out
+pr.out <- prcomp(x, scale = TRUE)
+str(x)
+# Inspect model output
+summary(pr.out)
+```
+The minimum number of principal components that are required to describe at least 74% of the cumulative variance in this dataset is 4
+
+```{r}
+ biplot(pr.out)
+```
+
+# Visualize variance explained
+
+```{r}
+# Variability of each principal component: pr.var
+pr.var <- pr.out$sdev^2
+
+# Variance explained by each principal component: pve
+pve <- pr.var /sum(pr.var) 
+pr.out$sdev
+```
+
+```{r}
+plot(pve, xlab = "Principal Component",
+     ylab = "Proportion of Variance Explained",
+     ylim = c(0, 1), type = "b")
+```
+Nhìn vào plot thì thấy số component nên giữ lại là 2 hoặc 6 ( không rõ rệt)
+
+```{r}
+# Plot cumulative proportion of variance explained
+plot(cumsum(pve), xlab = "Principal Component",
+     ylab = "Cumulative Proportion of Variance Explained",
+     ylim = c(0, 1), type = "b")
+```
+Nhìn vào plot thì thấy nên giữ lại 6 component.
+
+# Plot cumulative proportion of variance explained
+```{r}
+plot(cumsum(pve), xlab = "Principal Component",
+     ylab = "Cumulative Proportion of Variance Explained",
+     ylim = c(0, 1), type = "b") 
+```
+
+# Random Forest
+```{r message= FALSE}
+install.packages("randomForest")
+library(randomForest)
+```
+## Tạo thêm biến Compact.move.delay2= compact2 = nếu có giá trị >0, gán 1, nếu giá trị = 0, gán 0
+```{r}
+data$compact2 <- ifelse(data$Compactor.move.delay >0, 1, 0)
+
+```
+
+```{r}
+data$Compactor.move.delay <- NULL
+str(data)
+summary(data)
+```
+
+```{r}
+set.seed(100)
+train <- sample(nrow(data), 0.7*nrow(data), replace = FALSE)
+TrainSet <- data[train,]
+ValidSet <- data[-train,]
+summary(TrainSet)
+summary(ValidSet)
+```
+
+# create random forest model
+```{r}
+# Create a Random Forest model with default parameters
+model1 <- randomForest(compact2 ~ ., data = TrainSet, importance = TRUE)
+model1
+```
+
+```{r}
+# Fine tuning parameters of Random Forest model
+model2 <- randomForest(compact2 ~ ., data = TrainSet, ntree = 500, mtry = 2, importance = TRUE)
+model2
+```
+
+```{r}
+# Predicting on train set
+predTrain <- predict(model2, TrainSet, type = "class")
+# Checking classification accuracy
+table(predTrain, TrainSet$compact2)  
+```
+
+```{r}
+# Predicting on Validation set
+predValid <- predict(model2, ValidSet, type = "class")
+# Checking classification accuracy
+mean(predValid == ValidSet$compact2)                    
+table(predValid,ValidSet$compact2)
+```
+
+#Nhận xét
+Bài toán này không dự đoán được Compact.move.delay do đó khi áp dụng model Random Forest cũng không có ý nghĩa.
+
+```{r}
+# To check important variables
+importance(model2)        
+varImpPlot(model2)    
+
+```
+
